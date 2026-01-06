@@ -5,7 +5,7 @@ import datetime
 import os
 import time
 import pandas as pd
-import plotly.express as px
+import express as px
 
 # ==========================================
 # 1. 全局配置
