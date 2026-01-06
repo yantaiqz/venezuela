@@ -128,6 +128,7 @@ lang_texts = {
         'pay_alipay': '支付宝',
         'pay_paypal': '贝宝',
         'pay_btn_prefix': '👉 支付',
+        'paid_btn': '已打赏',
         'scan_tip': '请使用手机扫描上方二维码',
         'pay_success': "收到！感谢你的 {count} 杯咖啡！代码写得更有劲了！❤️",
         
@@ -184,6 +185,7 @@ lang_texts = {
         'pay_wechat': 'WeChat',
         'pay_alipay': 'Alipay',
         'pay_paypal': 'PayPal',
+        'paid_btn': 'Already Paid',
         'pay_btn_prefix': '👉 Pay',
         'scan_tip': 'Please scan the QR code above',
         'pay_success': "Received! Thanks for the {count} coffees! ❤️",
