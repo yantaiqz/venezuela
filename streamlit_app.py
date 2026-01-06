@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. 样式合并 (保留原样)
+# 2. 样式合并 (基础样式 + 支付卡片样式)
 # ==========================================
 st.markdown("""
 <style>
@@ -47,8 +47,6 @@ st.markdown("""
         margin-top: 20px; padding: 10px; background-color: #f8f9fa;
         border-radius: 10px; border: 1px solid #e9ecef;
     }
-    .metric-box { text-align: center; }
-    .metric-sub { font-size: 0.7rem; color: #adb5bd; }
 
     /* --- ☕ 咖啡打赏 2.0 专用样式 --- */
     .pay-card {
@@ -94,16 +92,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. 状态初始化 (修改默认语言为 en)
+# 3. 状态初始化 (默认英文)
 # ==========================================
 if 'start_time' not in st.session_state:
     st.session_state.start_time = datetime.datetime.now()
     st.session_state.access_status = 'free'
     st.session_state.unlock_time = None
 
-# 修改：默认设为 'en'
 if 'language' not in st.session_state:
-    st.session_state.language = 'en'
+    st.session_state.language = 'en' # 默认英文
     
 if 'coffee_num' not in st.session_state:
     st.session_state.coffee_num = 1
@@ -112,7 +109,7 @@ if 'visitor_id' not in st.session_state:
     st.session_state["visitor_id"] = str(uuid.uuid4())
 
 # ==========================================
-# 4. 常量与文本配置 (扩充字典)
+# 4. 文本字典 (中英双语)
 # ==========================================
 FREE_PERIOD_SECONDS = 600 
 ACCESS_DURATION_HOURS = 24
@@ -121,24 +118,25 @@ DB_FILE = os.path.join(os.path.expanduser("~/"), "visit_stats.db")
 
 lang_texts = {
     'zh': {
-        # Footer & Pay
-        'coffee_desc': '如果这些工具帮到了你，欢迎支持老登的创作。',
-        'footer_btn3': '请老登一杯咖啡 ☕',
-        'custom_count': '自定义数量 (杯)',
+        # --- 咖啡打赏相关 ---
+        'coffee_desc': '如果这些数据帮到了你，欢迎支持开发者。',
+        'coffee_btn': "☕ 请开发者喝咖啡",
+        'coffee_title': " ", # Dialog 标题留空美观
+        'coffee_presets': [("☕ 提神", 1), ("🍗 加餐", 3), ("🚀 续命", 5)],
+        'coffee_amount': "请输入打赏杯数",
         'pay_wechat': '微信支付',
         'pay_alipay': '支付宝',
         'pay_paypal': '贝宝',
-        'paid_btn': '🎉 我已支付，给老登打气！',
-        'pay_success': "收到！感谢打赏。代码写得更有劲了！❤️",
-        "coffee_btn": "☕ 请开发者喝咖啡",
-        "coffee_title": " ",
-        "coffee_amount": "请输入打赏杯数",
+        'pay_btn_prefix': '👉 支付',
+        'scan_tip': '请使用手机扫描上方二维码',
+        'pay_success': "收到！感谢你的 {count} 杯咖啡！代码写得更有劲了！❤️",
         
-        # Main UI
+        # --- 主界面 ---
         "main_title": "🗺️ 不要为我哭泣，委内瑞拉",
         "main_subtitle": "数据展示美国侵略委内瑞拉为了毒品还是石油",
-        
-        # Expander 1: Drugs
+        "more_apps": "✨ 更多好玩应用",
+
+        # --- 模块 1: 毒品 ---
         "exp1_title": "💊 美国毒品进口来源与中转 (Cocaine & Fentanyl)",
         "drug_select": "选择毒品类型",
         "opt_cocaine": "可卡因 (Cocaine)",
@@ -152,13 +150,13 @@ lang_texts = {
         "tab_caption_flow": "📊 数据明细 (按影响因子排序)",
         "tab_caption_risk": "📊 风险数据明细",
         
-        # Data Labels (Drugs)
+        # --- 数据标签 (毒品) ---
         "role_primary_src": "主产地", "role_src": "产地", "role_transit_core": "核心中转", "role_transit_sec": "次级中转", "role_transit": "中转", "role_dest": "目的地",
         "rank_src_1": "源头#1", "rank_src_2": "源头#2", "rank_src_3": "源头#3", "rank_trans_1": "中转#1", "rank_trans_2": "中转#2", "rank_trans_3": "中转#3",
         "role_syn": "主要合成地", "role_pre": "前体来源", "role_none": "无主要关联", "role_minor": "次要来源",
         "det_syn": "主要成品供应源", "det_pre": "化学原料供应", "det_cons": "消费国", "det_none": "无生产记录", "det_smug": "少量跨境走私",
 
-        # Expander 2: Oil
+        # --- 模块 2: 石油 ---
         "exp2_title": "🛢️ 全球石油：产量 vs 储量 (Production vs Reserves)",
         "view_mode": "查看模式",
         "opt_reserves": "已探明储量 (Reserves)",
@@ -172,29 +170,30 @@ lang_texts = {
         "tab_caption_res": "📊 储量排行榜 (Top Reserves)",
         "tab_caption_prod": "📊 产量排行榜 (Top Production)",
         
-        # Table Columns
+        # --- 表格列名 ---
         "col_country": "国家", "col_role": "角色", "col_rank": "排名", "col_share": "份额", "col_risk": "风险指数", 
         "col_reserves": "储量 (十亿桶)", "col_prod": "日产量 (百万桶)", "col_global_share": "全球占比"
     },
     'en': {
-        # Footer & Pay
-        'coffee_desc': "If you enjoyed this, consider buying me a coffee!",
-        'footer_btn3': 'Support Me ☕',
-        'custom_count': 'Custom count (cups)',
+        # --- Coffee ---
+        'coffee_desc': "If this data helped you, consider buying me a coffee!",
+        'coffee_btn': "☕ Buy me a coffee",
+        'coffee_title': " ", 
+        'coffee_presets': [("☕ Coffee", 1), ("🍗 Meal", 3), ("🚀 Rocket", 5)],
+        'coffee_amount': "Enter Coffee Count",
         'pay_wechat': 'WeChat',
         'pay_alipay': 'Alipay',
         'pay_paypal': 'PayPal',
-        'paid_btn': '🎉 I have paid!',
-        'pay_success': "Received! Thanks for the coffee! ❤️",
-        "coffee_btn": "☕ Buy me a coffee",
-        "coffee_title": " ",
-        "coffee_amount": "Enter Coffee Count",
-        
-        # Main UI
+        'pay_btn_prefix': '👉 Pay',
+        'scan_tip': 'Please scan the QR code above',
+        'pay_success': "Received! Thanks for the {count} coffees! ❤️",
+
+        # --- Main UI ---
         "main_title": "🗺️ Don't Cry for Me, Venezuela",
         "main_subtitle": "Data map showing if US interest is driven by Drugs or Oil",
+        "more_apps": "✨ More Apps",
         
-        # Expander 1: Drugs
+        # --- Expander 1: Drugs ---
         "exp1_title": "💊 US Drug Import Sources & Transit (Cocaine & Fentanyl)",
         "drug_select": "Select Drug Type",
         "opt_cocaine": "Cocaine",
@@ -208,13 +207,13 @@ lang_texts = {
         "tab_caption_flow": "📊 Data Details (Sorted by Impact)",
         "tab_caption_risk": "📊 Risk Data Details",
 
-        # Data Labels (Drugs)
+        # --- Data Labels (Drugs) ---
         "role_primary_src": "Primary Source", "role_src": "Source", "role_transit_core": "Primary Transit", "role_transit_sec": "Secondary Transit", "role_transit": "Transit", "role_dest": "Destination",
         "rank_src_1": "Source #1", "rank_src_2": "Source #2", "rank_src_3": "Source #3", "rank_trans_1": "Transit #1", "rank_trans_2": "Transit #2", "rank_trans_3": "Transit #3",
         "role_syn": "Primary Synthesis", "role_pre": "Precursor Source", "role_none": "No Major Link", "role_minor": "Minor Source",
         "det_syn": "Finished Product Source", "det_pre": "Raw Material Source", "det_cons": "Consumer", "det_none": "No Production Record", "det_smug": "Minor Trafficking",
 
-        # Expander 2: Oil
+        # --- Expander 2: Oil ---
         "exp2_title": "🛢️ Global Oil: Production vs Reserves",
         "view_mode": "View Mode",
         "opt_reserves": "Proven Reserves",
@@ -228,30 +227,29 @@ lang_texts = {
         "tab_caption_res": "📊 Top Reserves Ranking",
         "tab_caption_prod": "📊 Top Production Ranking",
         
-        # Table Columns
+        # --- Table Columns ---
         "col_country": "Country", "col_role": "Role", "col_rank": "Rank", "col_share": "Share", "col_risk": "Risk Index", 
         "col_reserves": "Reserves (Bn bbl)", "col_prod": "Production (Mn bpd)", "col_global_share": "Global Share"
     }
 }
-# 辅助函数：获取当前语言文本
+
 def get_txt(key):
     return lang_texts[st.session_state.language].get(key, key)
 
 # ==========================================
-# 5. 右上角功能区 (保留原样)
+# 5. 右上角功能区
 # ==========================================
 col_empty, col_lang, col_more = st.columns([0.7, 0.1, 0.2])
 with col_lang:
-    # 按钮显示 "中" 或 "En"
     l_btn = "En" if st.session_state.language == 'zh' else "中"
     if st.button(l_btn, key="lang_switch"):
         st.session_state.language = 'en' if st.session_state.language == 'zh' else 'zh'
         st.rerun()
 
 with col_more:
-    st.markdown("""
+    st.markdown(f"""
         <a href="https://laodeng.streamlit.app/" target="_blank" class="neal-btn-link">
-            <button class="neal-btn">✨ More Apps</button>
+            <button class="neal-btn">{get_txt("more_apps")}</button>
         </a>""", unsafe_allow_html=True)
 
 
@@ -276,7 +274,7 @@ def add_map_labels(fig, df, lat_col='lat', lon_col='lon', text_col='Label_Text',
     return fig
 
 # ----------------------------------------------------
-# 模块 1: 美国毒品进口来源 (Cocaine & Fentanyl)
+# 模块 1: 美国毒品进口来源
 # ----------------------------------------------------
 with st.expander(get_txt("exp1_title"), expanded=True):
     drug_option = st.radio(get_txt("drug_select"), ["Cocaine", "Fentanyl"], format_func=lambda x: get_txt("opt_cocaine") if x == "Cocaine" else get_txt("opt_fentanyl"), horizontal=True)
@@ -284,7 +282,6 @@ with st.expander(get_txt("exp1_title"), expanded=True):
     if drug_option == "Cocaine":
         st.markdown(get_txt("insight_cocaine"))
         
-        # 动态生成数据 (使用字典中的文本)
         data_cocaine = {
             "Country": ["Colombia", "Peru", "Bolivia", "Mexico", "Venezuela", "Ecuador", "United States"],
             "Role": [get_txt("role_primary_src"), get_txt("role_src"), get_txt("role_src"), get_txt("role_transit_core"), get_txt("role_transit_sec"), get_txt("role_transit"), get_txt("role_dest")],
@@ -464,4 +461,128 @@ with st.expander(get_txt("exp2_title"), expanded=True):
 
 
 # ==========================================
-# 8. 咖啡
+# 8. 咖啡打赏系统 (完整版)
+# ==========================================
+
+st.markdown("<br><br>", unsafe_allow_html=True)    
+c1, c2, c3 = st.columns([1, 2, 1])
+
+with c2:
+    @st.dialog(" " + get_txt('coffee_title'), width="small")
+    def show_coffee_window():
+        st.markdown(f"""<div style="text-align:center; color:#666; margin-bottom:15px;">{get_txt('coffee_desc')}</div>""", unsafe_allow_html=True)
+        
+        # 预设按钮 (支持双语)
+        presets = get_txt('coffee_presets')
+        
+        # 快捷选择逻辑
+        def set_val(n): st.session_state.coffee_num = n
+        
+        cols = st.columns(3, gap="small")
+        for i, (label, num) in enumerate(presets):
+            with cols[i]:
+                if st.button(label, use_container_width=True, key=f"p_btn_{i}"): 
+                    set_val(num)
+        st.write("")
+
+        # 数量输入
+        col_amount, col_total = st.columns([1, 1], gap="small")
+        with col_amount: 
+            cnt = st.number_input(get_txt('coffee_amount'), 1, 100, step=1, key='coffee_num')
+        
+        cny_total = cnt * 10
+        usd_total = cnt * 2
+        
+        # 支付卡片渲染函数
+        def render_pay_tab(title, amount_str, color_class, img_path, qr_data_suffix, link_url=None):
+            with st.container(border=True):
+                st.markdown(f"""
+                    <div style="text-align: center; padding-bottom: 10px;">
+                        <div class="pay-label {color_class}" style="margin-bottom: 5px;">{title}</div>
+                        <div class="pay-amount-display {color_class}" style="margin: 0; font-size: 1.8rem;">{amount_str}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                c_img_1, c_img_2, c_img_3 = st.columns([1, 4, 1])
+                with c_img_2:
+                    if os.path.exists(img_path): 
+                        st.image(img_path, use_container_width=True)
+                    else: 
+                        # 生成演示用二维码
+                        qr_data = f"Donate_{cny_total}_{qr_data_suffix}"
+                        if link_url: qr_data = link_url
+                        st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={qr_data}", use_container_width=True)
+                
+                if link_url:
+                    st.write("")
+                    st.link_button(f"{get_txt('pay_btn_prefix')} {amount_str}", link_url, type="primary", use_container_width=True)
+                else:
+                    st.markdown(f"""<div class="pay-instruction" style="text-align: center; padding-top: 10px;">{get_txt('scan_tip')}</div>""", unsafe_allow_html=True)
+                    
+        st.write("")
+        t1, t2, t3 = st.tabs([get_txt('pay_wechat'), get_txt('pay_alipay'), get_txt('pay_paypal')])
+        
+        with t1: render_pay_tab(get_txt('pay_wechat'), f"¥{cny_total}", "color-wechat", "wechat_pay.jpg", "WeChat")
+        with t2: render_pay_tab(get_txt('pay_alipay'), f"¥{cny_total}", "color-alipay", "ali_pay.jpg", "Alipay")
+        with t3: render_pay_tab(get_txt('pay_paypal'), f"${usd_total}", "color-paypal", "paypal.png", "PayPal", "https://paypal.me/ytqz")
+        
+        st.write("")
+        # 模拟支付成功
+        if st.button("🎉 " + get_txt('paid_btn'), type="primary", use_container_width=True):
+            st.balloons()
+            st.success(get_txt('pay_success').format(count=cnt))
+            time.sleep(1.5)
+            st.rerun()
+
+    # 触发按钮
+    if st.button(get_txt('coffee_btn'), use_container_width=True):
+        show_coffee_window()
+
+
+# ==========================================
+# 9. 数据库统计
+# ==========================================
+DB_DIR = os.path.expanduser("~/")
+DB_FILE = os.path.join(DB_DIR, "template_visit_stats.db")
+    
+def track_stats():
+    try:
+        conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS daily_traffic (date TEXT PRIMARY KEY, pv_count INTEGER DEFAULT 0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS visitors (visitor_id TEXT PRIMARY KEY, last_visit_date TEXT)''')
+        
+        today = datetime.datetime.utcnow().date().isoformat()
+        vid = st.session_state["visitor_id"]
+        
+        if "has_counted" not in st.session_state:
+            c.execute("INSERT OR IGNORE INTO daily_traffic (date, pv_count) VALUES (?, 0)", (today,))
+            c.execute("UPDATE daily_traffic SET pv_count = pv_count + 1 WHERE date=?", (today,))
+            c.execute("INSERT OR REPLACE INTO visitors (visitor_id, last_visit_date) VALUES (?, ?)", (vid, today))
+            conn.commit()
+            st.session_state["has_counted"] = True
+        
+        t_uv = c.execute("SELECT COUNT(*) FROM visitors WHERE last_visit_date=?", (today,)).fetchone()[0]
+        a_uv = c.execute("SELECT COUNT(*) FROM visitors").fetchone()[0]
+        conn.close()
+        return t_uv, a_uv
+    except Exception as e:
+        return 0, 0
+
+today_uv, total_uv = track_stats()
+
+st.markdown(f"""
+<style>
+    .stats-bar {{
+        display: flex; justify-content: center; gap: 25px; margin-top: 40px; 
+        padding: 15px 25px; background-color: white; border-radius: 50px; 
+        border: 1px solid #eee; color: #6b7280; font-size: 0.85rem; 
+        width: fit-content; margin-left: auto; margin-right: auto; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }}
+</style>
+<div class="stats-bar">
+    <div style="text-align: center;"><div>Today UV</div><div style="font-weight:700; color:#111;">{today_uv}</div></div>
+    <div style="border-left:1px solid #eee; padding-left:25px; text-align: center;"><div>Total UV</div><div style="font-weight:700; color:#111;">{total_uv}</div></div>
+</div>
+""", unsafe_allow_html=True)
