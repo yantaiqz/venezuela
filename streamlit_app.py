@@ -6,19 +6,20 @@ import os
 import time
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go # 新增：用于添加地图文本图层
 
 # ==========================================
 # 1. 全局配置
 # ==========================================
 st.set_page_config(
-    page_title="Global Insights | Data Map",
+    page_title="Global Insights | Data Map V2",
     page_icon="🌍",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # ==========================================
-# 2. 样式合并 (基础样式 + 咖啡加强版样式)
+# 2. 样式合并 (保留原样)
 # ==========================================
 st.markdown("""
 <style>
@@ -82,13 +83,18 @@ st.markdown("""
     [data-testid="button-lang_switch"] {
         position: fixed; top: 20px; right: 120px; z-index: 999; width: 80px !important;
     }
+    
+    /* 调整表格样式使其更紧凑 */
+    div[data-testid="stDataFrame"] div[class^="stDataFrame"] {
+        font-size: 0.9rem;
+    }
 
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap');
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. 状态初始化
+# 3. 状态初始化 (保留原样)
 # ==========================================
 if 'start_time' not in st.session_state:
     st.session_state.start_time = datetime.datetime.now()
@@ -104,9 +110,9 @@ if 'visitor_id' not in st.session_state:
     st.session_state["visitor_id"] = str(uuid.uuid4())
 
 # ==========================================
-# 4. 常量与文本配置
+# 4. 常量与文本配置 (保留原样)
 # ==========================================
-FREE_PERIOD_SECONDS = 600 # 调试方便改为600秒，实际可改回60
+FREE_PERIOD_SECONDS = 600 
 ACCESS_DURATION_HOURS = 24
 UNLOCK_CODE = "vip24"
 DB_FILE = os.path.join(os.path.expanduser("~/"), "visit_stats.db")
@@ -142,7 +148,7 @@ lang_texts = {
 current_text = lang_texts[st.session_state.language]
 
 # ==========================================
-# 5. 右上角功能区
+# 5. 右上角功能区 (保留原样)
 # ==========================================
 col_empty, col_lang, col_more = st.columns([0.7, 0.1, 0.2])
 with col_lang:
@@ -158,7 +164,7 @@ with col_more:
         </a>""", unsafe_allow_html=True)
 
 # ==========================================
-# 6. 权限校验逻辑
+# 6. 权限校验逻辑 (保留原样)
 # ==========================================
 current_time = datetime.datetime.now()
 access_granted = False
@@ -200,27 +206,23 @@ if not access_granted:
 # 核心功能区 (已解锁)
 # ==========================================
 st.divider()
-st.title("🗺️ 全球数据透视 | Global Insights")
+st.title("🗺️ 全球数据透视 | Global Insights V2")
 st.write("以下数据展示了毒品贸易与能源格局的关键流动与对比。")
 
-# --- 功能函数：绘制地图 ---
-def plot_world_map(df, loc_col, val_col, hover_cols, title, color_scale="Reds", log_scale=False):
-    fig = px.choropleth(
-        df,
-        locations=loc_col,
-        locationmode="country names",
-        color=val_col,
-        hover_name=loc_col,
-        hover_data=hover_cols,
-        color_continuous_scale=color_scale,
-        title=title,
-        projection="equirectangular" 
-    )
-    fig.update_layout(
-        margin={"r":0,"t":40,"l":0,"b":0},
-        geo=dict(showframe=False, showcoastlines=True, projection_type='equirectangular'),
-        height=500
-    )
+# --- 新增功能函数：在地图上添加文本标签 ---
+def add_map_labels(fig, df, lat_col='lat', lon_col='lon', text_col='Label_Text', color='#333333', size=9):
+    """
+    在 Plotly 地图上添加 Scattergeo 图层以显示文本标签。
+    """
+    fig.add_trace(go.Scattergeo(
+        lon=df[lon_col],
+        lat=df[lat_col],
+        text=df[text_col],
+        mode='text',
+        showlegend=False,
+        textfont=dict(size=size, color=color, family="Arial Black"),
+        hoverinfo='skip' # 标签本身不显示悬停信息，避免遮挡底层地图信息
+    ))
     return fig
 
 # ----------------------------------------------------
@@ -235,26 +237,57 @@ with st.expander("💊 美国毒品进口来源与中转 (Cocaine & Fentanyl)", 
         > 哥伦比亚是最大的源头国。
         """)
         
-
-        # 模拟数据 (基于DEA报告估算)
+        # 模拟数据 (增加经纬度 lat/lon)
         data_cocaine = {
             "Country": ["Colombia", "Peru", "Bolivia", "Mexico", "Venezuela", "Ecuador", "United States"],
-            "Role": ["主产地 (Primary Source)", "产地 (Source)", "产地 (Source)", "核心中转 (Primary Transit)", "次级中转 (Secondary Transit)", "中转 (Transit)", "目的地 (Destination)"],
-            "Flow_Share": [90, 20, 10, 90, 10, 35, 0], # Flow share towards US
-            "Rank": [1, 2, 3, "Transit #1", "Transit #2", "Transit #3", "-"]
+            "Role": ["主产地", "产地", "产地", "核心中转", "次级中转", "中转", "目的地"],
+            "Flow_Share": [90, 20, 10, 90, 10, 35, 0],
+            "Rank": ["源头#1", "源头#2", "源头#3", "中转#1", "中转#3", "中转#2", "-"],
+            # 新增：大致中心点坐标
+            "lat": [4.57, -9.19, -16.29, 23.63, 6.42, -1.83, 37.09],
+            "lon": [-74.30, -75.01, -63.58, -102.55, -66.59, -78.18, -95.71]
         }
         df_c = pd.DataFrame(data_cocaine)
-        
-        fig1 = px.choropleth(
-            df_c, locations="Country", locationmode="country names",
-            color="Flow_Share", 
-            hover_name="Country",
-            hover_data={"Role": True, "Rank": True, "Flow_Share": ":.0f%"},
-            color_continuous_scale="Oranges",
-            labels={"Flow_Share": "Estimated US Flow Impact (%)"},
-            title="可卡因流向美国：源头与中转热力图"
-        )
-        st.plotly_chart(fig1, use_container_width=True)
+        # 创建用于显示的标签文本
+        df_c['Label_Text'] = df_c.apply(lambda x: f"{x['Country']}\n({x['Flow_Share']}%)" if x['Flow_Share'] > 0 else x['Country'], axis=1)
+
+        # 布局：左地图，右表格
+        col_map, col_table = st.columns([2, 1], gap="medium")
+
+        with col_map:
+            # 1. 创建基础热力图
+            fig1 = px.choropleth(
+                df_c, locations="Country", locationmode="country names",
+                color="Flow_Share", 
+                hover_name="Country",
+                hover_data={"Role": True, "Rank": True, "Flow_Share": ":.0f%", "lat":False, "lon":False, "Label_Text":False},
+                color_continuous_scale="Oranges",
+                labels={"Flow_Share": "流向美国影响因子 (%)"},
+                title="可卡因流向美国：源头与中转热力图"
+            )
+            # 2. 添加文本标签图层
+            fig1 = add_map_labels(fig1, df_c)
+            # 3. 调整地图视野聚焦美洲
+            fig1.update_geos(fitbounds="locations", visible=True)
+            fig1.update_layout(margin={"r":0,"t":30,"l":0,"b":0}, height=450)
+            st.plotly_chart(fig1, use_container_width=True)
+
+        with col_table:
+            st.caption("📊 数据明细 (按影响因子排序)")
+            # 格式化表格数据
+            df_display = df_c[['Country', 'Role', 'Rank', 'Flow_Share']].sort_values(by='Flow_Share', ascending=False)
+            df_display['Flow_Share'] = df_display['Flow_Share'].apply(lambda x: f"{x}%")
+            st.dataframe(
+                df_display, 
+                hide_index=True, 
+                use_container_width=True,
+                column_config={
+                    "Country": "国家",
+                    "Role": "角色",
+                    "Rank": "排名",
+                    "Flow_Share": "流向份额"
+                }
+            )
 
     else:
         st.markdown("""
@@ -262,24 +295,58 @@ with st.expander("💊 美国毒品进口来源与中转 (Cocaine & Fentanyl)", 
         > **委内瑞拉** 在芬太尼供应链中几乎**无角色**。
         """)
         
+        # 模拟数据 (增加经纬度 lat/lon)
         data_fentanyl = {
             "Country": ["Mexico", "China", "United States", "Venezuela", "Canada"],
-            "Role": ["主要合成地 (Primary Synthesis)", "前体来源 (Precursor Source)", "目的地 (Destination)", "无主要关联 (No Link)", "次要来源 (Minor Source)"],
+            "Role": ["主要合成地", "前体来源", "目的地", "无主要关联", "次要来源"],
             "Risk_Score": [95, 60, 0, 1, 5], 
-            "Details": ["主要成品供应源", "化学原料供应", "消费国", "无生产记录", "少量跨境走私"]
+            "Details": ["主要成品供应源", "化学原料供应", "消费国", "无生产记录", "少量跨境走私"],
+            # 新增：大致中心点坐标
+            "lat": [23.63, 35.86, 37.09, 6.42, 56.13],
+            "lon": [-102.55, 104.19, -95.71, -66.59, -106.34]
         }
         df_f = pd.DataFrame(data_fentanyl)
-        
-        fig2 = px.choropleth(
-            df_f, locations="Country", locationmode="country names",
-            color="Risk_Score",
-            hover_name="Country",
-            hover_data={"Role": True, "Details": True},
-            color_continuous_scale="Reds",
-            labels={"Risk_Score": "Supply Risk Index"},
-            title="芬太尼供应风险地图 (US Market)"
-        )
-        st.plotly_chart(fig2, use_container_width=True)
+        # 创建用于显示的标签文本
+        df_f['Label_Text'] = df_f.apply(lambda x: f"{x['Country']}\n(Risk:{x['Risk_Score']})", axis=1)
+
+        # 布局：左地图，右表格
+        col_map, col_table = st.columns([2, 1], gap="medium")
+
+        with col_map:
+            # 1. 创建基础热力图
+            fig2 = px.choropleth(
+                df_f, locations="Country", locationmode="country names",
+                color="Risk_Score",
+                hover_name="Country",
+                hover_data={"Role": True, "Details": True, "lat":False, "lon":False, "Label_Text":False},
+                color_continuous_scale="Reds",
+                labels={"Risk_Score": "供应风险指数"},
+                title="芬太尼供应风险地图 (US Market)"
+            )
+            # 2. 添加文本标签图层
+            fig2 = add_map_labels(fig2, df_f)
+            fig2.update_geos(fitbounds="locations", visible=True)
+            fig2.update_layout(margin={"r":0,"t":30,"l":0,"b":0}, height=450)
+            st.plotly_chart(fig2, use_container_width=True)
+
+        with col_table:
+            st.caption("📊 风险数据明细")
+            df_display_f = df_f[['Country', 'Role', 'Risk_Score']].sort_values(by='Risk_Score', ascending=False)
+            st.dataframe(
+                df_display_f, 
+                hide_index=True, 
+                use_container_width=True,
+                column_config={
+                    "Country": "国家",
+                    "Role": "产业链角色",
+                    "Risk_Score": st.column_config.ProgressColumn(
+                        "风险指数 (0-100)",
+                        format="%d",
+                        min_value=0,
+                        max_value=100,
+                    )
+                }
+            )
 
 # ----------------------------------------------------
 # 模块 2: 全球石油产量 vs 储量
@@ -287,13 +354,16 @@ with st.expander("💊 美国毒品进口来源与中转 (Cocaine & Fentanyl)", 
 with st.expander("🛢️ 全球石油：产量 vs 储量 (Production vs Reserves)", expanded=True):
     view_mode = st.radio("查看模式 / View Mode", ["已探明储量 (Reserves)", "日产量 (Production)"], horizontal=True)
     
-    # 模拟数据 (2025/2026 预估数据)
+    # 模拟数据 (2025/2026 预估数据) - 增加经纬度
     data_oil = {
         "Country": ["Venezuela", "Saudi Arabia", "United States", "Canada", "Iran", "Iraq", "Russia", "China", "UAE", "Kuwait", "Brazil"],
         "Reserves_Billion_Barrels": [303, 267, 68, 171, 208, 145, 107, 26, 111, 101, 13],
         "Production_Million_BPD": [1.1, 9.0, 13.3, 4.8, 3.2, 4.3, 9.5, 4.2, 3.0, 2.5, 3.5],
         "Reserves_Rank": [1, 2, 9, 3, 4, 5, 6, 13, 7, 8, 15],
-        "Production_Rank": [20, 2, 1, 4, 8, 6, 3, 5, 7, 9, 8]
+        "Production_Rank": [20, 2, 1, 4, 8, 6, 3, 5, 7, 9, 8],
+        # 新增坐标
+        "lat": [6.42, 23.88, 37.09, 56.13, 32.42, 33.22, 61.52, 35.86, 23.42, 29.31, -14.23],
+        "lon": [-66.59, 45.07, -95.71, -106.34, 53.68, 43.67, 105.31, 104.19, 53.84, 47.48, -51.92]
     }
     df_oil = pd.DataFrame(data_oil)
     # 计算百分比
@@ -303,38 +373,78 @@ with st.expander("🛢️ 全球石油：产量 vs 储量 (Production vs Reserve
     df_oil["Reserves_Share"] = (df_oil["Reserves_Billion_Barrels"] / total_reserves) * 100
     df_oil["Production_Share"] = (df_oil["Production_Million_BPD"] / total_prod) * 100
 
+    # 布局：左地图，右表格
+    col_map_oil, col_table_oil = st.columns([2, 1], gap="medium")
+
     if "Reserves" in view_mode:
-        st.info("💡 **委内瑞拉**拥有世界第一的石油储量 (约19%)，但受制于基础设施，大部分未被开采。")
+        with col_map_oil:
+            st.info("💡 **委内瑞拉**拥有世界第一的石油储量 (约19%)，但受制于基础设施，大部分未被开采。")
+            # 创建标签
+            df_oil['Label_Text'] = df_oil.apply(lambda x: f"{x['Country']}\n({x['Reserves_Billion_Barrels']} Bn)", axis=1)
+            
+            fig3 = px.choropleth(
+                df_oil, locations="Country", locationmode="country names",
+                color="Reserves_Billion_Barrels",
+                hover_name="Country",
+                hover_data={"Reserves_Rank": True, "Reserves_Share": ":.1f%", "Production_Rank": True, "lat":False, "lon":False, "Label_Text":False},
+                color_continuous_scale="Viridis",
+                labels={"Reserves_Billion_Barrels": "储量 (十亿桶)"},
+                title="全球石油储量分布图"
+            )
+            fig3 = add_map_labels(fig3, df_oil)
+            fig3.update_geos(fitbounds="locations", visible=True)
+            fig3.update_layout(margin={"r":0,"t":30,"l":0,"b":0}, height=500)
+            st.plotly_chart(fig3, use_container_width=True)
         
-        
-        fig3 = px.choropleth(
-            df_oil, locations="Country", locationmode="country names",
-            color="Reserves_Billion_Barrels",
-            hover_name="Country",
-            hover_data={"Reserves_Rank": True, "Reserves_Share": ":.1f%", "Production_Rank": True},
-            color_continuous_scale="Viridis",
-            labels={"Reserves_Billion_Barrels": "Reserves (Billion Barrels)"},
-            title="全球石油储量分布图 (Billion Barrels)"
-        )
-        st.plotly_chart(fig3, use_container_width=True)
+        with col_table_oil:
+            st.caption("📊 储量排行榜 (Top Reserves)")
+            df_display_oil = df_oil[['Reserves_Rank', 'Country', 'Reserves_Billion_Barrels', 'Reserves_Share']].sort_values(by='Reserves_Rank')
+            st.dataframe(
+                df_display_oil, hide_index=True, use_container_width=True,
+                column_config={
+                    "Reserves_Rank": "排名",
+                    "Country": "国家",
+                    "Reserves_Billion_Barrels": st.column_config.NumberColumn("储量 (十亿桶)", format="%d"),
+                    "Reserves_Share": st.column_config.NumberColumn("全球占比", format="%.1f%%")
+                }
+            )
         
     else:
-        st.warning("⚠️ 尽管储量第一，**委内瑞拉**的产量仅排名第 20 左右。美国是当前世界最大产油国。")
-        
-        fig4 = px.choropleth(
-            df_oil, locations="Country", locationmode="country names",
-            color="Production_Million_BPD",
-            hover_name="Country",
-            hover_data={"Production_Rank": True, "Production_Share": ":.1f%", "Reserves_Rank": True},
-            color_continuous_scale="Plasma",
-            labels={"Production_Million_BPD": "Production (Million BPD)"},
-            title="全球石油日产量分布图 (Million Barrels/Day)"
-        )
-        st.plotly_chart(fig4, use_container_width=True)
+        with col_map_oil:
+            st.warning("⚠️ 尽管储量第一，**委内瑞拉**的产量仅排名第 20 左右。美国是当前世界最大产油国。")
+            # 创建标签
+            df_oil['Label_Text'] = df_oil.apply(lambda x: f"{x['Country']}\n({x['Production_Million_BPD']} M)", axis=1)
+
+            fig4 = px.choropleth(
+                df_oil, locations="Country", locationmode="country names",
+                color="Production_Million_BPD",
+                hover_name="Country",
+                hover_data={"Production_Rank": True, "Production_Share": ":.1f%", "Reserves_Rank": True, "lat":False, "lon":False, "Label_Text":False},
+                color_continuous_scale="Plasma",
+                labels={"Production_Million_BPD": "日产量 (百万桶)"},
+                title="全球石油日产量分布图"
+            )
+            fig4 = add_map_labels(fig4, df_oil, color='#ffffff') # 深色地图用白色文字
+            fig4.update_geos(fitbounds="locations", visible=True)
+            fig4.update_layout(margin={"r":0,"t":30,"l":0,"b":0}, height=500)
+            st.plotly_chart(fig4, use_container_width=True)
+
+        with col_table_oil:
+            st.caption("📊 产量排行榜 (Top Production)")
+            df_display_prod = df_oil[['Production_Rank', 'Country', 'Production_Million_BPD', 'Production_Share']].sort_values(by='Production_Rank')
+            st.dataframe(
+                df_display_prod, hide_index=True, use_container_width=True,
+                column_config={
+                    "Production_Rank": "排名",
+                    "Country": "国家",
+                    "Production_Million_BPD": st.column_config.NumberColumn("日产量 (百万桶)", format="%.1f"),
+                    "Production_Share": st.column_config.NumberColumn("全球占比", format="%.1f%%")
+                }
+            )
 
 
 # ==========================================
-# 8. 咖啡打赏系统
+# 8. 咖啡打赏系统 (保留原样)
 # ==========================================
 
 def get_txt(key): 
@@ -408,7 +518,7 @@ with c2:
 
 
 # ==========================================
-# 9. 数据库统计 (保持原样)
+# 9. 数据库统计 (保留原样)
 # ==========================================
 DB_DIR = os.path.expanduser("~/")
 DB_FILE = os.path.join(DB_DIR, "template_visit_stats.db")
